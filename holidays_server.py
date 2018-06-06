@@ -183,7 +183,7 @@ class Controller(polyinterface.Controller):
         if self.currentDate != date.today():
             LOGGER.debug('New date detected. Recalculating nodes')
             self.dateProvider.refresh()
-            for node in self.nodes.items():
+            for node in self.nodes.values():
                 node.refresh()
             self.currentDate = date.today()
 
