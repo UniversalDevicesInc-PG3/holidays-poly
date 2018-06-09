@@ -184,7 +184,8 @@ class Controller(polyinterface.Controller):
             LOGGER.debug('New date detected. Recalculating nodes')
             self.dateProvider.refresh()
             for node in self.nodes.values():
-                node.refresh()
+                if node != self:
+                    node.refresh()
             self.currentDate = date.today()
 
     def discover(self, *args, **kwargs):
@@ -211,9 +212,11 @@ class Controller(polyinterface.Controller):
             newParams['rules'] = ''
         else:
             self.dateProvider.custom_rules = []
-            for ruleStr in customParams['rules'].split(';'):
-                rule, desc = ruleStr.split('=')
-                self.dateProvider.add_custom_rule(rule, desc)
+            rules = customParams.get('rules')
+            if rules and len(rules) > 0:
+                for ruleStr in customParams['rules'].split(';'):
+                    rule, desc = ruleStr.split('=')
+                    self.dateProvider.add_custom_rule(rule, desc)
 
         self.addCustomParam(newParams)
 
@@ -292,11 +295,7 @@ class DayNode(polyinterface.Node):
         self.reportDrivers()
 
     def get_state(self):
-        result = 1 if not self.is_force_off and (self.is_day_off or self.dateProvider.is_day_off(self.key)) else 0
-        LOGGER.debug("Key %s %s %s %s %s", self.key, self.is_force_off,
-            self.is_day_off, self.dateProvider.is_day_off(self.key), result)
-
-        return result
+        return 1 if not self.is_force_off and (self.is_day_off or self.dateProvider.is_day_off(self.key)) else 0
 
     drivers = [
         { 'driver': 'ST', 'value': 0, 'uom': 2 },
