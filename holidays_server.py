@@ -174,8 +174,67 @@ class Controller(polyinterface.Controller):
         super(Controller, self).__init__(polyglot)
         self.dateProvider = dateProvider
         self.currentDate = None
+        self.poly.onConfig(self.process_config)
+
+    def supports_feature(self, feature):
+        if hasattr(self.poly, 'supports_feature'):
+            return self.poly.supports_feature(feature)
+
+        return False
 
     def start(self):
+        if self.supports_feature('typedParams'):
+            params = [
+                {
+                    'name': 'includeHolidays',
+                    'title': 'Include Holidays',
+                    'desc': 'List of holidays to include (leave empty to include all)',
+                    'isList': True,
+                    'isRequired': True
+                },
+                {
+                    'name': 'excludeHolidays',
+                    'title': 'Exclude Holidays',
+                    'desc': 'List of holidays to exclude',
+                    'isList': True,
+                    'isRequired': True
+                },
+                {
+                    'name': 'weekend',
+                    'title': 'Weekend',
+                    'desc': 'Normal weekend (days off) days',
+                    'defaultValue': [ 'Saturday', 'Sunday' ],
+                    'isList': True,
+                    'isRequired': True
+                },
+                {
+                    'name': 'rules',
+                    'title': 'Rules',
+                    'desc': 'Rules defining days off',
+                    'isList': True,
+                    'params': [
+                        {
+                            'name': 'description',
+                            'title': 'Description',
+                            'isRequired': True
+                        },
+                        {
+                            'name': 'dateStr',
+                            'title': 'Date String',
+                            'isRequired': True
+                        },
+                    ]
+                }
+            ]
+            self.poly.save_typed_params(params)
+
+        if self.supports_feature('customParamsDoc'):
+            data = '<h3>Known Holidays</h3><ul>'
+            for holiday in self.dateProvider.get_holiday_list():
+                data += '<li>' + holiday + '</li>'
+            data += '</ul>'
+            self.poly.add_custom_config_docs(data)
+
         LOGGER.info('Started HolidayServer')
         self.discover()
 
@@ -188,8 +247,11 @@ class Controller(polyinterface.Controller):
                     node.refresh()
             self.currentDate = date.today()
 
-    def discover(self, *args, **kwargs):
-        self.customDates = self.polyConfig.get('customData', {}).get('customDates', {})
+    def process_config(self, config):
+        if not self.supports_feature('typedParams'):
+            self.process_legacy_params()
+
+    def process_legacy_params(self):
         newParams = {}
         customParams = self.polyConfig.get('customParams', {})
 
@@ -218,8 +280,11 @@ class Controller(polyinterface.Controller):
                     rule, desc = ruleStr.split('=')
                     self.dateProvider.add_custom_rule(rule, desc)
 
-        self.addCustomParam(newParams)
+        if len(newParams) > 0:
+            self.addCustomParam(newParams)
 
+    def discover(self, *args, **kwargs):
+        self.customDates = self.polyConfig.get('customData', {}).get('customDates', {})
         self.currentDate = date.today()
         self.dateProvider.refresh()
 
