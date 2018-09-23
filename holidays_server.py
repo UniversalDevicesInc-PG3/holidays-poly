@@ -176,64 +176,56 @@ class Controller(polyinterface.Controller):
         self.currentDate = None
         self.poly.onConfig(self.process_config)
 
-    def supports_feature(self, feature):
-        if hasattr(self.poly, 'supports_feature'):
-            return self.poly.supports_feature(feature)
-
-        return False
-
     def start(self):
-        if self.supports_feature('typedParams'):
-            params = [
-                {
-                    'name': 'includeHolidays',
-                    'title': 'Include Holidays',
-                    'desc': 'List of holidays to include (leave empty to include all)',
-                    'isList': True,
-                    'isRequired': True
-                },
-                {
-                    'name': 'excludeHolidays',
-                    'title': 'Exclude Holidays',
-                    'desc': 'List of holidays to exclude',
-                    'isList': True,
-                    'isRequired': True
-                },
-                {
-                    'name': 'weekend',
-                    'title': 'Weekend',
-                    'desc': 'Normal weekend (days off) days',
-                    'defaultValue': [ 'Saturday', 'Sunday' ],
-                    'isList': True,
-                    'isRequired': True
-                },
-                {
-                    'name': 'rules',
-                    'title': 'Rules',
-                    'desc': 'Rules defining days off',
-                    'isList': True,
-                    'params': [
-                        {
-                            'name': 'description',
-                            'title': 'Description',
-                            'isRequired': True
-                        },
-                        {
-                            'name': 'dateStr',
-                            'title': 'Date String',
-                            'isRequired': True
-                        },
-                    ]
-                }
-            ]
-            self.poly.save_typed_params(params)
+        params = [
+            {
+                'name': 'includeHolidays',
+                'title': 'Include Holidays',
+                'desc': 'List of holidays to include (leave empty to include all)',
+                'isList': True,
+                'isRequired': True
+            },
+            {
+                'name': 'excludeHolidays',
+                'title': 'Exclude Holidays',
+                'desc': 'List of holidays to exclude',
+                'isList': True,
+                'isRequired': True
+            },
+            {
+                'name': 'weekend',
+                'title': 'Weekend',
+                'desc': 'Normal weekend (days off) days',
+                'defaultValue': [ 'Saturday', 'Sunday' ],
+                'isList': True,
+                'isRequired': True
+            },
+            {
+                'name': 'rules',
+                'title': 'Rules',
+                'desc': 'Rules defining days off',
+                'isList': True,
+                'params': [
+                    {
+                        'name': 'description',
+                        'title': 'Description',
+                        'isRequired': True
+                    },
+                    {
+                        'name': 'dateStr',
+                        'title': 'Date String',
+                        'isRequired': True
+                    },
+                ]
+            }
+        ]
+        self.poly.save_typed_params(params)
 
-        if self.supports_feature('customParamsDoc'):
-            data = '<h3>Known Holidays</h3><ul>'
-            for holiday in self.dateProvider.get_holiday_list():
-                data += '<li>' + holiday + '</li>'
-            data += '</ul>'
-            self.poly.add_custom_config_docs(data)
+        data = '<h3>Known Holidays</h3><ul>'
+        for holiday in self.dateProvider.get_holiday_list():
+            data += '<li>' + holiday + '</li>'
+        data += '</ul>'
+        self.poly.add_custom_config_docs(data)
 
         LOGGER.info('Started HolidayServer')
         self.discover()
@@ -241,47 +233,30 @@ class Controller(polyinterface.Controller):
     def longPoll(self):
         if self.currentDate != date.today():
             LOGGER.debug('New date detected. Recalculating nodes')
-            self.dateProvider.refresh()
-            for node in self.nodes.values():
-                if node != self:
-                    node.refresh()
+            self.refresh()
             self.currentDate = date.today()
 
+    def refresh(self):
+        self.dateProvider.refresh()
+        for node in self.nodes.values():
+            if node != self:
+                node.refresh()
+
     def process_config(self, config):
-        if not self.supports_feature('typedParams'):
-            self.process_legacy_params()
+        typedConfig = config.get('typedCustomData')
+        if not typedConfig:
+            return
 
-    def process_legacy_params(self):
-        newParams = {}
-        customParams = self.polyConfig.get('customParams', {})
-
-        if 'includeHolidays' not in customParams:
-            newParams['includeHolidays'] = ';'.join(self.dateProvider.get_holiday_list())
-        else:
-            self.dateProvider.set_include(customParams['includeHolidays'].split(';'))
-
-        if 'excludeHolidays' not in customParams:
-            newParams['excludeHolidays'] = ''
-        else:
-            self.dateProvider.set_exclude(customParams['excludeHolidays'].split(';'))
-
-        if 'weekend' not in customParams:
-            newParams['weekend'] = 'Saturday;Sunday'
-        else:
-            self.dateProvider.set_weekend(customParams['weekend'].split(';'))
-
-        if 'rules' not in customParams:
-            newParams['rules'] = ''
-        else:
-            self.dateProvider.custom_rules = []
-            rules = customParams.get('rules')
-            if rules and len(rules) > 0:
-                for ruleStr in customParams['rules'].split(';'):
-                    rule, desc = ruleStr.split('=')
-                    self.dateProvider.add_custom_rule(rule, desc)
-
-        if len(newParams) > 0:
-            self.addCustomParam(newParams)
+        self.dateProvider.set_include(typedConfig['includeHolidays'])
+        self.dateProvider.set_exclude(typedConfig['excludeHolidays'])
+        self.dateProvider.set_weekend(typedConfig['weekend'])
+        self.dateProvider.custom_rules = []
+        rules = typedConfig.get('rules')
+        if rules:
+            for rule in rules:
+                self.dateProvider.add_custom_rule(rule['dateStr'],
+                    rule['description'])
+        self.refresh()
 
     def discover(self, *args, **kwargs):
         self.customDates = self.polyConfig.get('customData', {}).get('customDates', {})
