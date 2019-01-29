@@ -170,14 +170,21 @@ class DateProvider(object):
 
 class Controller(polyinterface.Controller):
 
-    def __init__(self, polyglot, dateProvider):
+    def __init__(self, polyglot):
         super(Controller, self).__init__(polyglot)
-        self.dateProvider = dateProvider
+        self.dateProvider = DateProvider('US')
         self.currentDate = None
         self.poly.onConfig(self.process_config)
 
     def start(self):
         params = [
+            {
+                'name': 'country',
+                'title': 'Country',
+                'desc': 'Country to get holidays for',
+                'defaultValue': 'US',
+                'isRequired': True
+            },
             {
                 'name': 'includeHolidays',
                 'title': 'Include Holidays',
@@ -221,14 +228,17 @@ class Controller(polyinterface.Controller):
         ]
         self.poly.save_typed_params(params)
 
+        self.addHolidaysList()
+
+        LOGGER.info('Started HolidayServer')
+        self.discover()
+
+    def addHolidaysList(self):
         data = '<h3>Known Holidays</h3><ul>'
         for holiday in self.dateProvider.get_holiday_list():
             data += '<li>' + holiday + '</li>'
         data += '</ul>'
-        self.poly.add_custom_config_docs(data)
-
-        LOGGER.info('Started HolidayServer')
-        self.discover()
+        self.poly.add_custom_config_docs(data, True)
 
     def longPoll(self):
         if self.currentDate != date.today():
@@ -246,6 +256,10 @@ class Controller(polyinterface.Controller):
         typedConfig = config.get('typedCustomData')
         if not typedConfig:
             return
+
+        if self.dateProvider.country != typedConfig['country']:
+            self.dateProvider = DateProvider(typedConfig['country'])
+            self.addHolidaysList()
 
         self.dateProvider.set_include(typedConfig['includeHolidays'])
         self.dateProvider.set_exclude(typedConfig['excludeHolidays'])
@@ -350,10 +364,9 @@ class DayNode(polyinterface.Node):
 
 @click.command()
 def holidays_server():
-    provider = DateProvider('US')
     polyglot = polyinterface.Interface('HolidayServer')
     polyglot.start()
-    controller = Controller(polyglot, provider)
+    controller = Controller(polyglot)
     controller.name = 'Holiday Controller'
     controller.runForever()
 
