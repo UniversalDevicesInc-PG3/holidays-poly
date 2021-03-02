@@ -37,7 +37,10 @@ class Rule(object):
         '''
         if not ruleStr.startswith(Rule.START_TOKEN):
             self.date = dateparser.parse(ruleStr,
-                settings={ 'RELATIVE_BASE': self.base, 'STRICT_PARSING': True })
+                                         settings={
+                                             'RELATIVE_BASE': self.base,
+                                             'STRICT_PARSING': True
+                                         })
             if self.date is not None:
                 self.date = self.date.date()
             return
@@ -47,7 +50,10 @@ class Rule(object):
         toPos = ruleStr.find(Rule.TO_TOKEN)
         if toPos > 0:
             toDate = dateparser.parse(ruleStr[toPos + len(Rule.TO_TOKEN):],
-                settings={ 'PREFER_DATES_FROM': 'future', 'RELATIVE_BASE': self.base }).date()
+                                      settings={
+                                          'PREFER_DATES_FROM': 'future',
+                                          'RELATIVE_BASE': self.base
+                                      }).date()
             if self.base.date() > toDate:
                 return
 
@@ -55,8 +61,11 @@ class Rule(object):
 
         fromPos = ruleStr.find(Rule.FROM_TOKEN)
         if fromPos > 0:
-            fromDate = dateparser.parse(ruleStr[fromPos + len(Rule.FROM_TOKEN):],
-                settings={ 'RELATIVE_BASE': self.base }).date()
+            fromDate = dateparser.parse(ruleStr[fromPos +
+                                                len(Rule.FROM_TOKEN):],
+                                        settings={
+                                            'RELATIVE_BASE': self.base
+                                        }).date()
 
             if self.base.date() < fromDate:
                 return
@@ -66,14 +75,25 @@ class Rule(object):
         if dayPos > 0:
             ruleStr = ruleStr[:dayPos]
             self.date = dateparser.parse(str(self.base.month) + '/' + ruleStr,
-                settings={ 'RELATIVE_BASE': self.base }).date()
+                                         settings={
+                                             'RELATIVE_BASE': self.base
+                                         }).date()
             if self.date < self.base.date():
-                self.date = dateparser.parse(str(self.base.month + 1) + '/' + ruleStr,
-                    settings={ 'RELATIVE_BASE': self.base }).date()
+                self.date = dateparser.parse(str(self.base.month + 1) + '/' +
+                                             ruleStr,
+                                             settings={
+                                                 'RELATIVE_BASE': self.base
+                                             }).date()
         else:
             future = dateparser.parse(ruleStr,
-                settings={ 'PREFER_DATES_FROM': 'future', 'RELATIVE_BASE': self.base }).date()
-            past = dateparser.parse(ruleStr, settings={ 'RELATIVE_BASE': self.base }).date()
+                                      settings={
+                                          'PREFER_DATES_FROM': 'future',
+                                          'RELATIVE_BASE': self.base
+                                      }).date()
+            past = dateparser.parse(ruleStr,
+                                    settings={
+                                        'RELATIVE_BASE': self.base
+                                    }).date()
 
             # workaround for day of the week parsting, which is never TODAY
             # either last week or next
@@ -91,8 +111,11 @@ class DateProvider(object):
     TODAY = 'today'
     TOMORROW = 'tomorrow'
 
-    def __init__(self, country='US', weekend=['Saturday', 'Sunday'],
-            include_holidays='', exclude_holidays=''):
+    def __init__(self,
+                 country='US',
+                 weekend=['Saturday', 'Sunday'],
+                 include_holidays='',
+                 exclude_holidays=''):
         self.dates = {}
         self.country = country
         self.holidays = holidays.CountryHoliday(country)
@@ -143,15 +166,15 @@ class DateProvider(object):
         for rule in self.custom_rules:
             rule.parse()
             if rule.date is not None:
-                self.holidays.append({ rule.date: rule.desc })
+                self.holidays.append({rule.date: rule.desc})
 
     def is_holiday(self, key):
         result = self.holidays.get(self.dates[key])
-        if (result is not None and
-            (len(self.include) == 0 or result in self.include) and
-            result not in self.exclude):
-            LOGGER.debug('Holiday found for Key %s, Date %s',
-                key, self.dates[key])
+        if (result is not None
+                and (len(self.include) == 0 or result in self.include)
+                and result not in self.exclude):
+            LOGGER.debug('Holiday found for Key %s, Date %s', key,
+                         self.dates[key])
             return True
 
         return False
@@ -159,8 +182,8 @@ class DateProvider(object):
     def is_weekend(self, key):
         result = self.weekend.get(calendar.day_name[self.dates[key].weekday()])
         if result is not None:
-            LOGGER.debug('Weekend found for Key %s, Date %s',
-                key, self.dates[key])
+            LOGGER.debug('Weekend found for Key %s, Date %s', key,
+                         self.dates[key])
             return True
         return False
 
@@ -169,7 +192,6 @@ class DateProvider(object):
 
 
 class Controller(polyinterface.Controller):
-
     def __init__(self, polyglot):
         super(Controller, self).__init__(polyglot)
         self.dateProvider = DateProvider('US')
@@ -177,61 +199,60 @@ class Controller(polyinterface.Controller):
         self.poly.onConfig(self.process_config)
 
     def start(self):
-        params = [
-            {
-                'name': 'country',
-                'title': 'Country',
-                'desc': 'Country to get holidays for',
-                'defaultValue': 'US',
-                'isRequired': True
-            },
-            {
-                'name': 'includeHolidays',
-                'title': 'Include Holidays',
-                'desc': 'List of holidays to include (leave empty to include all)',
-                'isList': True,
-                'isRequired': True
-            },
-            {
-                'name': 'excludeHolidays',
-                'title': 'Exclude Holidays',
-                'desc': 'List of holidays to exclude',
-                'isList': True,
-                'isRequired': True
-            },
-            {
-                'name': 'weekend',
-                'title': 'Weekend',
-                'desc': 'Normal weekend (days off) days',
-                'defaultValue': [ 'Saturday', 'Sunday' ],
-                'isList': True,
-                'isRequired': True
-            },
-            {
-                'name': 'rules',
-                'title': 'Rules',
-                'desc': 'Rules defining days off',
-                'isList': True,
-                'params': [
-                    {
-                        'name': 'description',
-                        'title': 'Description',
-                        'isRequired': True
-                    },
-                    {
-                        'name': 'dateStr',
-                        'title': 'Date String',
-                        'isRequired': True
-                    },
-                ]
-            }
-        ]
+        params = [{
+            'name': 'country',
+            'title': 'Country',
+            'desc': 'Country to get holidays for',
+            'defaultValue': 'US',
+            'isRequired': True
+        }, {
+            'name': 'includeHolidays',
+            'title': 'Include Holidays',
+            'desc': 'List of holidays to include (leave empty to include all)',
+            'isList': True,
+            'isRequired': True
+        }, {
+            'name': 'excludeHolidays',
+            'title': 'Exclude Holidays',
+            'desc': 'List of holidays to exclude',
+            'isList': True,
+            'isRequired': True
+        }, {
+            'name': 'weekend',
+            'title': 'Weekend',
+            'desc': 'Normal weekend (days off) days',
+            'defaultValue': ['Saturday', 'Sunday'],
+            'isList': True,
+            'isRequired': True
+        }, {
+            'name':
+            'rules',
+            'title':
+            'Rules',
+            'desc':
+            'Rules defining days off',
+            'isList':
+            True,
+            'params': [
+                {
+                    'name': 'description',
+                    'title': 'Description',
+                    'isRequired': True
+                },
+                {
+                    'name': 'dateStr',
+                    'title': 'Date String',
+                    'isRequired': True
+                },
+            ]
+        }]
         self.poly.save_typed_params(params)
 
         self.addHolidaysList()
 
         LOGGER.info('Started HolidayServer')
         self.discover()
+        self.setDriver('ST', 1)
 
     def addHolidaysList(self):
         data = '<h3>Known Holidays</h3><ul>'
@@ -247,6 +268,7 @@ class Controller(polyinterface.Controller):
             self.currentDate = date.today()
 
     def refresh(self):
+        self.setDriver('ST', 1)
         self.dateProvider.refresh()
         for node in self.nodes.values():
             if node != self:
@@ -269,20 +291,23 @@ class Controller(polyinterface.Controller):
         if rules:
             for rule in rules:
                 self.dateProvider.add_custom_rule(rule['dateStr'],
-                    rule['description'])
+                                                  rule['description'])
         self.refresh()
 
     def discover(self, *args, **kwargs):
-        self.customDates = self.polyConfig.get('customData', {}).get('customDates', {})
+        self.customDates = self.polyConfig.get('customData',
+                                               {}).get('customDates', {})
         self.currentDate = date.today()
         self.dateProvider.refresh()
 
         time.sleep(1)
         for key in self.dateProvider.dates.keys():
-            customDate = self.customDates.get(str(self.dateProvider.dates[key]))
-            self.addNode(DayNode(self, self.address, key.lower(),
-                key + ' Day Node', key, self.dateProvider, self,
-                customDate is True, customDate is False))
+            customDate = self.customDates.get(str(
+                self.dateProvider.dates[key]))
+            self.addNode(
+                DayNode(self, self.address, key.lower(), key + ' Day Node',
+                        key, self.dateProvider, self, customDate is True,
+                        customDate is False))
 
     def set_on(self, date):
         self.customDates[str(date)] = True
@@ -300,13 +325,14 @@ class Controller(polyinterface.Controller):
 
     id = 'controller'
     commands = {'DISCOVER': discover}
-    drivers = [{ 'driver': 'ST', 'value': 0, 'uom': 2 }]
+    drivers = [{'driver': 'ST', 'value': 0, 'uom': 2}]
 
 
 class DayNode(polyinterface.Node):
     def __init__(self, controllerAddress, primary, address, name, key,
-        dateProvider, controller, is_day_off, is_force_off):
-        super(DayNode, self).__init__(controllerAddress, primary, address, name)
+                 dateProvider, controller, is_day_off, is_force_off):
+        super(DayNode, self).__init__(controllerAddress, primary, address,
+                                      name)
         self.key = key
         self.dateProvider = dateProvider
         self.controller = controller
@@ -349,17 +375,29 @@ class DayNode(polyinterface.Node):
         self.reportDrivers()
 
     def get_state(self):
-        return 1 if not self.is_force_off and (self.is_day_off or self.dateProvider.is_day_off(self.key)) else 0
+        return 1 if not self.is_force_off and (
+            self.is_day_off or self.dateProvider.is_day_off(self.key)) else 0
 
-    drivers = [
-        { 'driver': 'ST', 'value': 0, 'uom': 2 },
-        { 'driver': 'GV0', 'value': 0, 'uom': 47 },
-        { 'driver': 'GV1', 'value': 0, 'uom': 9 },
-        { 'driver': 'GV2', 'value': 0, 'uom': 77 }
-    ]
+    drivers = [{
+        'driver': 'ST',
+        'value': 0,
+        'uom': 2
+    }, {
+        'driver': 'GV0',
+        'value': 0,
+        'uom': 47
+    }, {
+        'driver': 'GV1',
+        'value': 0,
+        'uom': 9
+    }, {
+        'driver': 'GV2',
+        'value': 0,
+        'uom': 77
+    }]
 
     id = 'daynode'
-    commands = { 'DON': set_on, 'DOF': set_off, 'FOFF': set_force_off }
+    commands = {'DON': set_on, 'DOF': set_off, 'FOFF': set_force_off}
 
 
 @click.command()
