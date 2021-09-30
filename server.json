@@ -1,20 +1,23 @@
 {
     "name": "Holidays",
-    "docs": "https://github.com/firstone/holidays-poly/blob/master/README.md",
+    "docs": "https://github.com/UniversalDevicesInc-PG3/holidays-poly/blob/master/README.md",
     "type": "python3",
     "executable": "holidays_server.py",
     "install": "install.sh",
     "shortPoll": 15,
     "longPoll": 60,
+	"logLevel": "INFO",
+	"customParams": {
+	},
     "description": "Maintains list of holidays and vacations",
-    "notice": "https://github.com/firstone/holidays-poly/blob/master/LICENSE",
+    "notice": "https://github.com/UniversalDevicesInc-PG3/holidays-poly/blob/master/LICENSE",
     "credits": [
         {
             "title": "Holidays",
             "author": "FirstOne",
-            "source": "https://github.com/firstone/holidays-poly",
-            "license": "https://github.com/firstone/holidays-poly/blob/master/LICENSE",
-            "version": "0.1.6"
+            "source": "https://github.com/UniversalDevicesInc-PG3/holidays-poly",
+            "license": "https://github.com/UniversalDevicesInc-PG3/holidays-poly/blob/master/LICENSE",
+            "version": "1.0.0"
         },
         {
             "title": "udi-poly-template-python: A Polyglot v2 Poly template",
@@ -24,5 +27,14 @@
             "source": "https://github.com/Einstein42/udi-poly-template-python",
             "license": "https://raw.githubusercontent.com/Einstein42/udi-poly-template-python/master/LICENSE"
         }
-    ]
+    ],
+	"store": {
+		"developer": "bpaauwe@bobsplace.com",
+		"purchaseOptions": [
+			{
+				"isPerpetural": true,
+				"price": 0
+			}
+		]
+	}
 }

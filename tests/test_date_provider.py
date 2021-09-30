@@ -1,5 +1,5 @@
 from datetime import date
-import polyinterface
+import udi_interface
 import sys
 import unittest
 from unittest.mock import Mock
@@ -9,7 +9,7 @@ from holidays_server import Rule
 
 sys.stdout = sys.__stdout__
 sys.stderr = sys.__stderr__
-polyinterface.LOGGER.handlers = []
+udi_interface.LOGGER.handlers = []
 
 
 class DateProviderTester(unittest.TestCase):

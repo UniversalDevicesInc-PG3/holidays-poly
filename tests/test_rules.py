@@ -1,6 +1,6 @@
 from datetime import date
 from datetime import datetime
-import polyinterface
+import udi_interface
 import sys
 import unittest
 
@@ -8,7 +8,7 @@ from holidays_server import Rule
 
 sys.stdout = sys.__stdout__
 sys.stderr = sys.__stderr__
-polyinterface.LOGGER.handlers = []
+udi_interface.LOGGER.handlers = []
 
 
 class RuleTester(unittest.TestCase):

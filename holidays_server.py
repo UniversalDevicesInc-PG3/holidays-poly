@@ -7,8 +7,9 @@ from datetime import date
 from datetime import datetime
 from datetime import timedelta
 import holidays
-import polyinterface
-from polyinterface import LOGGER
+import udi_interface
+from udi_interface import LOGGER
+from udi_interface import Custom
 import time
 
 
@@ -191,62 +192,74 @@ class DateProvider(object):
         return self.is_weekend(key) or self.is_holiday(key)
 
 
-class Controller(polyinterface.Controller):
-    def __init__(self, polyglot):
-        super(Controller, self).__init__(polyglot)
+class Controller(udi_interface.Node):
+    def __init__(self, polyglot, primary, address, name):
+        super(Controller, self).__init__(polyglot, primary, address, name)
         self.dateProvider = DateProvider('US')
         self.currentDate = None
-        self.poly.onConfig(self.process_config)
+        self.poly = polyglot
+        self.TypedParameters = Custom(polyglot, "customtypedparams")
+        self.customData = Custom(polyglot, "customdata")
 
-    def start(self):
-        params = [{
-            'name': 'country',
-            'title': 'Country',
-            'desc': 'Country to get holidays for',
-            'defaultValue': 'US',
-            'isRequired': True
-        }, {
-            'name': 'includeHolidays',
-            'title': 'Include Holidays',
-            'desc': 'List of holidays to include (leave empty to include all)',
-            'isList': True,
-            'isRequired': True
-        }, {
-            'name': 'excludeHolidays',
-            'title': 'Exclude Holidays',
-            'desc': 'List of holidays to exclude',
-            'isList': True,
-            'isRequired': True
-        }, {
-            'name': 'weekend',
-            'title': 'Weekend',
-            'desc': 'Normal weekend (days off) days',
-            'defaultValue': ['Saturday', 'Sunday'],
-            'isList': True,
-            'isRequired': True
-        }, {
-            'name':
-            'rules',
-            'title':
-            'Rules',
-            'desc':
-            'Rules defining days off',
-            'isList':
-            True,
-            'params': [
-                {
+        polyglot.subscribe(polyglot.START, self.start, address)
+        polyglot.subscribe(polyglot.CUSTOMTYPEDPARAMS, self.typeParamsHandler)
+        polyglot.subscribe(polyglot.CUSTOMTYPEDDATA, self.parameterHandler)
+        polyglot.subscribe(polyglot.POLL, self.poll)
+
+        LOGGER.error('Loading typed parameters now....')
+        self.TypedParameters.load([
+            {
+                'name': 'country',
+                'title': 'Country',
+                'desc': 'Country to get holidays for',
+                'defaultValue': 'US',
+                'isRequired': True
+            }, {
+                'name': 'includeHolidays',
+                'title': 'Include Holidays',
+                'desc': 'List of holidays to include (leave empty to include all)',
+                'isList': True,
+                'isRequired': True
+            }, {
+                'name': 'excludeHolidays',
+                'title': 'Exclude Holidays',
+                'desc': 'List of holidays to exclude',
+                'isList': True,
+                'isRequired': True
+            }, {
+                'name': 'weekend',
+                'title': 'Weekend',
+                'desc': 'Normal weekend (days off) days',
+                'defaultValue': ['Saturday', 'Sunday'],
+                'isList': True,
+                'isRequired': True
+            }, {
+                'name': 'rules',
+                'title': 'Rules',
+                'desc': 'Rules defining days off',
+                'isList': True,
+                'params': [
+                    {
                     'name': 'description',
                     'title': 'Description',
                     'isRequired': True
-                },
-                {
+                    },
+                    {
                     'name': 'dateStr',
                     'title': 'Date String',
                     'isRequired': True
-                },
-            ]
-        }]
-        self.poly.save_typed_params(params)
+                    },
+                ]
+            }
+        ], True)
+        LOGGER.error('typed parameters = {}'.format(self.TypedParameters))
+
+        polyglot.ready()
+        polyglot.addNode(self)
+
+    def start(self):
+        #self.poly.save_typed_params(params)
+        self.poly.updateProfile()
 
         self.addHolidaysList()
 
@@ -254,40 +267,45 @@ class Controller(polyinterface.Controller):
         self.discover()
         self.setDriver('ST', 1)
 
+    def typeParamsHandler(self, params):
+        LOGGER.error(params)
+
     def addHolidaysList(self):
+        cfgdata = self.poly.getMarkDownData('POLYGLOT_CONFIG.md')
         data = '<h3>Known Holidays</h3><ul>'
         for holiday in self.dateProvider.get_holiday_list():
             data += '<li>' + holiday + '</li>'
         data += '</ul>'
-        self.poly.add_custom_config_docs(data, True)
+        cfgdata += data
+        self.poly.setCustomParamsDoc(cfgdata)
 
-    def longPoll(self):
-        if self.currentDate != date.today():
-            LOGGER.debug('New date detected. Recalculating nodes')
-            self.refresh()
-            self.currentDate = date.today()
+    def poll(self, pollflag):
+        if 'longPoll' in pollflag:
+            if self.currentDate != date.today():
+                LOGGER.debug('New date detected. Recalculating nodes')
+                self.refresh()
+                self.currentDate = date.today()
 
     def refresh(self):
         self.setDriver('ST', 1)
         self.dateProvider.refresh()
-        for node in self.nodes.values():
+        for node in self.poly.nodes():
             if node != self:
                 node.refresh()
 
-    def process_config(self, config):
-        typedConfig = config.get('typedCustomData')
-        if not typedConfig:
+    def parameterHandler(self, params):
+        if not params:
             return
 
-        if self.dateProvider.country != typedConfig['country']:
-            self.dateProvider = DateProvider(typedConfig['country'])
+        if self.dateProvider.country != params['country']:
+            self.dateProvider = DateProvider(params['country'])
             self.addHolidaysList()
 
-        self.dateProvider.set_include(typedConfig['includeHolidays'])
-        self.dateProvider.set_exclude(typedConfig['excludeHolidays'])
-        self.dateProvider.set_weekend(typedConfig['weekend'])
+        self.dateProvider.set_include(params['includeHolidays'])
+        self.dateProvider.set_exclude(params['excludeHolidays'])
+        self.dateProvider.set_weekend(params['weekend'])
         self.dateProvider.custom_rules = []
-        rules = typedConfig.get('rules')
+        rules = params.get('rules')
         if rules:
             for rule in rules:
                 self.dateProvider.add_custom_rule(rule['dateStr'],
@@ -295,49 +313,58 @@ class Controller(polyinterface.Controller):
         self.refresh()
 
     def discover(self, *args, **kwargs):
-        self.customDates = self.polyConfig.get('customData',
-                                               {}).get('customDates', {})
+        # get key 'customDates' from custom data?
+        #self.customDates = self.polyConfig.get('customData', {}).get('customDates', {})
+        self.customDates = self.customData.customDates
         self.currentDate = date.today()
         self.dateProvider.refresh()
 
         time.sleep(1)
         for key in self.dateProvider.dates.keys():
-            customDate = self.customDates.get(str(
-                self.dateProvider.dates[key]))
-            self.addNode(
-                DayNode(self, self.address, key.lower(), key + ' Day Node',
+            if self.customDates is not None:
+                customDate = self.customDates.get(str(
+                    self.dateProvider.dates[key]))
+            else:
+                customDate = None
+
+            self.poly.addNode(
+                DayNode(self.poly, self.address, key.lower(), key + ' Day Node',
                         key, self.dateProvider, self, customDate is True,
                         customDate is False))
 
     def set_on(self, date):
         self.customDates[str(date)] = True
-        self.saveCustomData({'customDates': self.customDates})
+        #self.saveCustomData({'customDates': self.customDates})
+        self.customData['customDates'] = self.customDates
 
     def set_off(self, date):
         if str(date) in self.customDates:
             self.customDates.pop(str(date))
 
-        self.saveCustomData({'customDates': self.customDates})
+        #self.saveCustomData({'customDates': self.customDates})
+        self.customData['customDates'] = self.customDates
 
     def set_force_off(self, date):
         self.customDates[str(date)] = False
-        self.saveCustomData({'customDates': self.customDates})
+        #self.saveCustomData({'customDates': self.customDates})
+        self.customData['customDates'] = self.customDates
 
     id = 'controller'
     commands = {'DISCOVER': discover}
     drivers = [{'driver': 'ST', 'value': 0, 'uom': 2}]
 
 
-class DayNode(polyinterface.Node):
-    def __init__(self, controllerAddress, primary, address, name, key,
+class DayNode(udi_interface.Node):
+    def __init__(self, polyglot, primary, address, name, key,
                  dateProvider, controller, is_day_off, is_force_off):
-        super(DayNode, self).__init__(controllerAddress, primary, address,
-                                      name)
+        super(DayNode, self).__init__(polyglot, primary, address, name)
         self.key = key
         self.dateProvider = dateProvider
         self.controller = controller
         self.is_day_off = False if is_day_off is None else is_day_off
         self.is_force_off = False if is_force_off is None else is_force_off
+
+        polyglot.subscribe(polyglot.START, self.start, address)
 
     def start(self):
         self.refresh()
@@ -402,11 +429,10 @@ class DayNode(polyinterface.Node):
 
 @click.command()
 def holidays_server():
-    polyglot = polyinterface.Interface('HolidayServer')
+    polyglot = udi_interface.Interface([])
     polyglot.start()
-    controller = Controller(polyglot)
-    controller.name = 'Holiday Controller'
-    controller.runForever()
+    Controller(polyglot, 'controller', 'controller', 'Holiday Controller')
+    polyglot.runForever()
 
 
 if __name__ == '__main__':
