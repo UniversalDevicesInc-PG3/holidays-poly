@@ -255,7 +255,7 @@ class Controller(udi_interface.Node):
         LOGGER.error('typed parameters = {}'.format(self.TypedParameters))
 
         polyglot.ready()
-        polyglot.addNode(self)
+        polyglot.addNode(self, conn_status="ST")
 
     def start(self):
         #self.poly.save_typed_params(params)
@@ -430,7 +430,7 @@ class DayNode(udi_interface.Node):
 @click.command()
 def holidays_server():
     polyglot = udi_interface.Interface([])
-    polyglot.start()
+    polyglot.start('1.0.0')
     Controller(polyglot, 'controller', 'controller', 'Holiday Controller')
     polyglot.runForever()
 
